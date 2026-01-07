@@ -59,6 +59,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, refreshUser }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Stats Logic
   const totalAvailable = user.balance.casual + user.balance.sick + user.balance.annual;
@@ -74,18 +75,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, refreshUser }) => {
   const handleTakeLeave = async () => {
     setError(null);
     setSuccess(null);
-    setLoading(true);
+    setSubmitting(true);
 
     // Basic Validation
     if (formData.amount <= 0) {
       setError("Amount must be greater than 0");
-      setLoading(false);
+      setSubmitting(false);
       return;
     }
 
     if (user.balance[formData.type] < formData.amount) {
       setError(`Insufficient ${formData.type} leave balance. Available: ${user.balance[formData.type]}`);
-      setLoading(false);
+      setSubmitting(false);
       return;
     }
 
@@ -97,16 +98,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, refreshUser }) => {
         amount: formData.amount,
         type: formData.type,
         timestamp: new Date(formData.date).getTime(),
-        status: 'pending' // NEW: Set as pending
+        status: 'pending'
       };
       
-      // UPDATED: Use submitLeaveRequest instead of addLeave
       const success = await DB.submitLeaveRequest(user.id, newLeave);
       
       if (success) {
         await refreshUser();
         
-        // UPDATED: Different message based on whether approval is needed
         if (user.reporting_to && user.manager_name) {
           setSuccess(`Leave request submitted! Waiting for ${user.manager_name}'s approval.`);
         } else {
@@ -128,7 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, refreshUser }) => {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -157,7 +156,6 @@ ${user.name}`;
     { name: 'Annual', value: user.balance.annual, color: '#22c55e' },
   ];
 
-  // Helper function to get status badge color
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -200,7 +198,6 @@ ${user.name}`;
         </button>
       </div>
 
-      {/* NEW: Manager Info Banner */}
       {user.reporting_to && user.manager_name && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -221,7 +218,6 @@ ${user.name}`;
         </div>
       )}
 
-      {/* NEW: Pending Leaves Alert */}
       {pendingLeaves > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center gap-2">
@@ -284,7 +280,7 @@ ${user.name}`;
            </div>
         </div>
 
-        {/* Recent Activity - UPDATED with status badges */}
+        {/* Recent Activity */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
           <h3 className="text-lg font-bold text-slate-900 mb-4">Recent History</h3>
           <div className="space-y-4">
@@ -301,7 +297,6 @@ ${user.name}`;
                     <p className="text-sm font-semibold text-slate-800 capitalize">{record.type} Leave</p>
                     <p className="text-xs text-slate-500">{record.date} • {record.amount} day(s)</p>
                   </div>
-                  {/* NEW: Status Badge */}
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusBadge(record.status)}`}>
                     {getStatusIcon(record.status)} {record.status === 'pending' ? 'Pending' : record.status === 'approved' ? 'Approved' : 'Rejected'}
                   </span>
@@ -327,7 +322,8 @@ ${user.name}`;
                   setError(null);
                   setSuccess(null);
                 }}
-                className="text-slate-400 hover:text-slate-600"
+                disabled={submitting}
+                className="text-slate-400 hover:text-slate-600 disabled:opacity-50"
               >
                 <X size={20} />
               </button>
@@ -353,7 +349,7 @@ ${user.name}`;
                     value={formData.date}
                     onChange={(e) => setFormData({...formData, date: e.target.value})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-                    disabled={loading}
+                    disabled={submitting}
                   />
                 </div>
                 <div>
@@ -365,7 +361,7 @@ ${user.name}`;
                     value={formData.amount}
                     onChange={(e) => setFormData({...formData, amount: parseFloat(e.target.value)})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-                    disabled={loading}
+                    disabled={submitting}
                   />
                 </div>
               </div>
@@ -377,7 +373,7 @@ ${user.name}`;
                     <button
                       key={type.id}
                       onClick={() => setFormData({...formData, type: type.id})}
-                      disabled={loading}
+                      disabled={submitting}
                       className={`
                         py-2 text-xs font-medium rounded-lg border transition-all
                         ${formData.type === type.id 
@@ -398,7 +394,7 @@ ${user.name}`;
                   <button 
                     onClick={copyToClipboard}
                     className="text-xs text-primary-600 hover:text-primary-700 font-medium"
-                    disabled={loading}
+                    disabled={submitting}
                   >
                     Copy Text
                   </button>
@@ -411,10 +407,10 @@ ${user.name}`;
               <div className="pt-2">
                 <button
                   onClick={handleTakeLeave}
-                  disabled={loading}
+                  disabled={submitting}
                   className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading ? (
+                  {submitting ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Submitting...

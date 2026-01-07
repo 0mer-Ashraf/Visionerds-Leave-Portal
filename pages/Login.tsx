@@ -11,18 +11,26 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const users = await DB.getUsers();
-    const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    
-    if (foundUser) {
-      onLogin(foundUser);
-    } else {
-      setError('Invalid email or password. Try admin@visionerds.com / admin');
+    try {
+      const users = await DB.getUsers();
+      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      
+      if (foundUser) {
+        onLogin(foundUser);
+      } else {
+        setError('Invalid email or password. Try admin@visionerds.com / admin');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,6 +68,7 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-sm"
                   placeholder="Enter your email"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -75,16 +84,27 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-sm"
                   placeholder="••••••••"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary-600/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+              disabled={loading}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary-600/20 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
-              <ArrowRight size={18} />
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Signing In...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight size={18} />
+                </>
+              )}
             </button>
           </form>
 

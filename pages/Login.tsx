@@ -12,13 +12,13 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const users = DB.getUsers();
+    const users = await DB.getUsers();
     const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-
+    
     if (foundUser) {
       onLogin(foundUser);
     } else {
@@ -89,11 +89,6 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
           </form>
 
           <div className="mt-8 text-center">
-             <p className="text-xs text-slate-400">
-               Demo Credentials:<br/>
-               Admin: admin@visionerds.com / admin<br/>
-               User: john@visionerds.com / user
-             </p>
           </div>
         </div>
       </div>

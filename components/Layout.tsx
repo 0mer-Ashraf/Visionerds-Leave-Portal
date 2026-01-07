@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -12,6 +12,7 @@ import {
   Key
 } from 'lucide-react';
 import { User } from '../types';
+import * as DB from '../services/db';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,9 +23,25 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassword }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Load pending approvals count for admins
+  useEffect(() => {
+    const loadPendingCount = async () => {
+      if (user.role === 'admin') {
+        const pending = await DB.getPendingApprovals(user.id);
+        setPendingCount(pending.length);
+      }
+    };
+
+    loadPendingCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(loadPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, [user.id, user.role]);
 
   // Build navigation items dynamically
   const navItems = [
@@ -83,14 +100,22 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassw
               to={item.path}
               onClick={() => setIsSidebarOpen(false)}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
+                flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors
                 ${isActive(item.path) 
                   ? 'bg-primary-600 text-white shadow-lg shadow-primary-900/20' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'}
               `}
             >
-              <item.icon size={20} />
-              <span className="font-medium">{item.label}</span>
+              <div className="flex items-center gap-3">
+                <item.icon size={20} />
+                <span className="font-medium">{item.label}</span>
+              </div>
+              {/* Notification Badge for Pending Approvals */}
+              {item.path === '/approvals' && pendingCount > 0 && (
+                <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                  {pendingCount}
+                </div>
+              )}
             </Link>
           ))}
         </div>

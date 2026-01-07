@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import * as DB from '../services/db';
-import { UserPlus, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UserPlus, CheckCircle2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { validatePasswordStrength, generateStrongPassword, getPasswordStrength } from '../utils/password';
 
 interface AdminProps {
   currentUser: User;
@@ -18,9 +19,13 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
     annual: 20,
     reporting_to: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+
+  const passwordStrength = getPasswordStrength(formData.password);
+  const validation = validatePasswordStrength(formData.password);
 
   useEffect(() => {
     // Load all users for the reporting_to dropdown
@@ -43,6 +48,12 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
     );
   }
 
+  const handleGeneratePassword = () => {
+    const generated = generateStrongPassword();
+    setFormData({...formData, password: generated});
+    setShowPassword(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
@@ -50,6 +61,13 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
 
     if (!formData.name || !formData.email || !formData.password) {
       setMessage({ type: 'error', text: 'Please fill all required fields.' });
+      setLoading(false);
+      return;
+    }
+
+    // Validate password strength
+    if (!validation.isValid) {
+      setMessage({ type: 'error', text: validation.errors[0] });
       setLoading(false);
       return;
     }
@@ -83,6 +101,7 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
           annual: 20,
           reporting_to: ''
         });
+        setShowPassword(false);
         // Reload users list
         const users = await DB.getUsers();
         setAllUsers(users);
@@ -142,16 +161,74 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
                   placeholder="name@company.com"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-slate-700">Password</label>
+                <button
+                  type="button"
+                  onClick={handleGeneratePassword}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                >
+                  <RefreshCw size={12} />
+                  Generate Strong Password
+                </button>
+              </div>
+              <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  placeholder="Enter a strong password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
+              
+              {/* Password Strength Indicator */}
+              {formData.password && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-slate-600">Password Strength:</span>
+                    <span className={`font-semibold ${
+                      passwordStrength.label === 'Weak' ? 'text-red-600' :
+                      passwordStrength.label === 'Medium' ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${passwordStrength.color} transition-all duration-300`}
+                      style={{ width: `${passwordStrength.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Password Requirements */}
+              {formData.password && !validation.isValid && (
+                <div className="mt-2 space-y-1">
+                  {validation.errors.map((err, idx) => (
+                    <p key={idx} className="text-xs text-red-600 flex items-center gap-1">
+                      <span className="w-1 h-1 bg-red-600 rounded-full"></span>
+                      {err}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
                 <select
@@ -165,7 +242,7 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
               </div>
             </div>
 
-            {/* NEW: Reporting To Field */}
+            {/* Reporting To Field */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Reports To (Manager for Leave Approval)
@@ -227,7 +304,7 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
           <div className="pt-4">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !validation.isValid}
               className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (

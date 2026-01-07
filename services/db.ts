@@ -298,3 +298,18 @@ export const addLeave = async (userId: string, leave: LeaveRecord): Promise<User
   if (!success) return null;
   return await getUserById(userId) || null;
 };
+
+// NEW: Update user password
+export const updateUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('id', userId);
+
+    return !error;
+  } catch (err) {
+    console.error('Error updating password:', err);
+    return false;
+  }
+};

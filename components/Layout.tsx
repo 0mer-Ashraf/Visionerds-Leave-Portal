@@ -7,7 +7,9 @@ import {
   LogOut, 
   Menu, 
   X,
-  Clock  // ⭐ NEW - Added for Pending Approvals
+  Clock,
+  Lock,
+  Key
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -15,21 +17,22 @@ interface LayoutProps {
   children: React.ReactNode;
   user: User;
   onLogout: () => void;
+  onChangePassword?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassword }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
 
-  // ⭐ UPDATED - Build navigation items dynamically
+  // Build navigation items dynamically
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/history', label: 'Leave History', icon: History },
   ];
 
-  // ⭐ NEW - Add Pending Approvals for admins (they have people reporting to them)
+  // Add Pending Approvals for admins (they have people reporting to them)
   if (user.role === 'admin') {
     navItems.push({ 
       path: '/approvals', 
@@ -40,7 +43,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
   // Admin-only features
   if (user.role === 'admin') {
-    navItems.push({ path: '/admin', label: 'Enroll User', icon: UserPlus });
+    navItems.push(
+      { path: '/admin', label: 'Enroll User', icon: UserPlus },
+      { path: '/admin/passwords', label: 'Password Management', icon: Lock }
+    );
   }
 
   return (
@@ -99,6 +105,18 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               <p className="text-xs text-slate-400 truncate capitalize">{user.role}</p>
             </div>
           </div>
+          
+          {/* Change Password Button */}
+          {onChangePassword && (
+            <button
+              onClick={onChangePassword}
+              className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-sm font-medium mb-2"
+            >
+              <Key size={18} />
+              Change Password
+            </button>
+          )}
+          
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-950/30 hover:text-red-300 rounded-lg transition-colors text-sm font-medium"

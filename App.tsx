@@ -7,11 +7,14 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import HistoryPage from './pages/History';
 import AdminPage from './pages/Admin';
-import PendingApprovalsPage from './pages/PendingApprovals'; // ⭐ NEW
+import PendingApprovalsPage from './pages/PendingApprovals';
+import AdminPasswordManagement from './pages/AdminPasswordManagement';
+import ChangePassword from './components/ChangePassword';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Initialize and check session on mount
   useEffect(() => {
@@ -43,6 +46,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePasswordChange = async (userId: string, newPassword: string): Promise<boolean> => {
+    const success = await DB.updateUserPassword(userId, newPassword);
+    if (success) {
+      await refreshUser();
+    }
+    return success;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -65,7 +76,7 @@ const App: React.FC = () => {
         <Route 
           path="/" 
           element={user ? (
-            <Layout user={user} onLogout={handleLogout}>
+            <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
               <Dashboard user={user} refreshUser={refreshUser} />
             </Layout>
           ) : <Navigate to="/login" />} 
@@ -74,17 +85,16 @@ const App: React.FC = () => {
         <Route 
           path="/history" 
           element={user ? (
-            <Layout user={user} onLogout={handleLogout}>
+            <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
               <HistoryPage user={user} />
             </Layout>
           ) : <Navigate to="/login" />} 
         />
 
-        {/* ⭐ NEW ROUTE - Pending Approvals */}
         <Route 
           path="/approvals" 
           element={user ? (
-            <Layout user={user} onLogout={handleLogout}>
+            <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
               <PendingApprovalsPage user={user} refreshUser={refreshUser} />
             </Layout>
           ) : <Navigate to="/login" />} 
@@ -93,14 +103,32 @@ const App: React.FC = () => {
         <Route 
           path="/admin" 
           element={user ? (
-            <Layout user={user} onLogout={handleLogout}>
+            <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
               <AdminPage currentUser={user} />
+            </Layout>
+          ) : <Navigate to="/login" />} 
+        />
+
+        <Route 
+          path="/admin/passwords" 
+          element={user ? (
+            <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
+              <AdminPasswordManagement currentUser={user} />
             </Layout>
           ) : <Navigate to="/login" />} 
         />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+
+      {/* Change Password Modal */}
+      {user && showChangePassword && (
+        <ChangePassword 
+          user={user} 
+          onPasswordChange={handlePasswordChange}
+          onClose={() => setShowChangePassword(false)}
+        />
+      )}
     </Router>
   );
 };

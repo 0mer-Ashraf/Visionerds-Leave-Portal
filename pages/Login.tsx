@@ -35,8 +35,8 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="w-full max-w-md p-8 relative z-10 animate-fade-in-up">
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
           <div className="mb-8 text-center">
-             <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-600/30">
-              <span className="text-white text-2xl font-bold">V</span>
+             <div className="w-12 h-12 mx-auto mb-4">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome Back</h2>
             <p className="text-slate-500 mt-2 text-sm">Sign in to manage your leaves</p>

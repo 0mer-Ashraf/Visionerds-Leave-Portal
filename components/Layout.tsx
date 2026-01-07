@@ -85,11 +85,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassw
         `}
       >
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <div className="w-8 h-8 bg-primary-600 rounded flex items-center justify-center">
-              <span className="text-white text-lg">V</span>
-            </div>
-            <span>Visionerds</span>
+          <div className="flex items-center gap-2">
+            <img src="/vn-logo.png" alt="Visionerds" className="h-10" />
           </div>
         </div>
 

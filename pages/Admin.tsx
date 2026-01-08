@@ -116,7 +116,7 @@ const AdminPage: React.FC<AdminProps> = ({ currentUser }) => {
   };
 
   // Get potential managers (admins and employees who can approve)
-  const potentialManagers = allUsers.filter(u => u.role === 'admin' || u.id !== currentUser.id);
+  const potentialManagers = allUsers.filter(u => u.role === 'admin');
 
   return (
     <div className="max-w-2xl mx-auto">

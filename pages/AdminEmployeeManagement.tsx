@@ -119,7 +119,7 @@ const AdminEmployeeManagement: React.FC<AdminEmployeeManagementProps> = ({ curre
   // Get potential managers (excluding the selected employee)
   const getPotentialManagers = () => {
     if (!selectedEmployee) return [];
-    return employees.filter(emp => emp.id !== selectedEmployee.id);
+    return employees.filter(emp => emp.role === 'admin' && emp.id !== selectedEmployee.id);
   };
 
   if (currentUser.role !== 'admin') {

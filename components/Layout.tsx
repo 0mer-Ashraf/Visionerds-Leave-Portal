@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -13,6 +13,7 @@ import {
   Users
 } from 'lucide-react';
 import { User } from '../types';
+import * as DB from '../services/db';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,22 +24,69 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassword }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [myPendingCount, setMyPendingCount] = useState(0);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Load pending counts
+  useEffect(() => {
+    const loadPendingCounts = async () => {
+      // Count user's own pending requests
+      const userPending = user.history.filter(h => h.status === 'pending').length;
+      setMyPendingCount(userPending);
+
+      // Count pending approvals for admin
+      if (user.role === 'admin') {
+        try {
+          const pendingApprovals = await DB.getPendingApprovals(user.id);
+          setPendingApprovalsCount(pendingApprovals.length);
+        } catch (err) {
+          console.error('Error loading pending approvals:', err);
+        }
+      }
+    };
+
+    loadPendingCounts();
+    
+    // Refresh counts every 30 seconds
+    const interval = setInterval(loadPendingCounts, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Badge component
+  const Badge: React.FC<{ count: number }> = ({ count }) => {
+    if (count === 0) return null;
+    return (
+      <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+        {count > 99 ? '99+' : count}
+      </span>
+    );
+  };
+
   // Build navigation items dynamically
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/history', label: 'Leave History', icon: History },
+    { 
+      path: '/', 
+      label: 'Dashboard', 
+      icon: LayoutDashboard,
+      badge: myPendingCount // Show user's pending requests on dashboard
+    },
+    { 
+      path: '/history', 
+      label: 'Leave History', 
+      icon: History 
+    },
   ];
 
-  // Add Pending Approvals for admins (they have people reporting to them)
+  // Add Pending Approvals for admins
   if (user.role === 'admin') {
     navItems.push({ 
       path: '/approvals', 
       label: 'Pending Approvals', 
-      icon: Clock 
+      icon: Clock,
+      badge: pendingApprovalsCount // Show count of pending approvals
     });
   }
 
@@ -93,6 +141,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassw
             >
               <item.icon size={20} />
               <span className="font-medium">{item.label}</span>
+              {'badge' in item && item.badge !== undefined && <Badge count={item.badge} />}
             </Link>
           ))}
         </div>

@@ -9,6 +9,7 @@ import HistoryPage from './pages/History';
 import AdminPage from './pages/Admin';
 import PendingApprovalsPage from './pages/PendingApprovals';
 import AdminPasswordManagement from './pages/AdminPasswordManagement';
+import AdminEmployeeManagement from './pages/AdminEmployeeManagement';
 import ChangePassword from './components/ChangePassword';
 
 const App: React.FC = () => {
@@ -105,6 +106,15 @@ const App: React.FC = () => {
           element={user ? (
             <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
               <AdminPage currentUser={user} />
+            </Layout>
+          ) : <Navigate to="/login" />} 
+        />
+
+        <Route 
+          path="/admin/employees" 
+          element={user ? (
+            <Layout user={user} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)}>
+              <AdminEmployeeManagement currentUser={user} />
             </Layout>
           ) : <Navigate to="/login" />} 
         />

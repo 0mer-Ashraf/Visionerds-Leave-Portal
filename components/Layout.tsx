@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -9,10 +9,10 @@ import {
   X,
   Clock,
   Lock,
-  Key
+  Key,
+  Users
 } from 'lucide-react';
 import { User } from '../types';
-import * as DB from '../services/db';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,25 +23,9 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassword }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
-
-  // Load pending approvals count for admins
-  useEffect(() => {
-    const loadPendingCount = async () => {
-      if (user.role === 'admin') {
-        const pending = await DB.getPendingApprovals(user.id);
-        setPendingCount(pending.length);
-      }
-    };
-
-    loadPendingCount();
-    // Refresh count every 30 seconds
-    const interval = setInterval(loadPendingCount, 30000);
-    return () => clearInterval(interval);
-  }, [user.id, user.role]);
 
   // Build navigation items dynamically
   const navItems = [
@@ -62,6 +46,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassw
   if (user.role === 'admin') {
     navItems.push(
       { path: '/admin', label: 'Enroll User', icon: UserPlus },
+      { path: '/admin/employees', label: 'Manage Employees', icon: Users },
       { path: '/admin/passwords', label: 'Password Management', icon: Lock }
     );
   }
@@ -85,8 +70,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassw
         `}
       >
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <img src="/vn-logo.png" alt="Visionerds" className="h-10" />
+          <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
+            <div className="w-8 h-8 bg-primary-600 rounded flex items-center justify-center">
+              <span className="text-white text-lg">V</span>
+            </div>
+            <span>Visionerds</span>
           </div>
         </div>
 
@@ -97,22 +85,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onChangePassw
               to={item.path}
               onClick={() => setIsSidebarOpen(false)}
               className={`
-                flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors
+                flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
                 ${isActive(item.path) 
                   ? 'bg-primary-600 text-white shadow-lg shadow-primary-900/20' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'}
               `}
             >
-              <div className="flex items-center gap-3">
-                <item.icon size={20} />
-                <span className="font-medium">{item.label}</span>
-              </div>
-              {/* Notification Badge for Pending Approvals */}
-              {item.path === '/approvals' && pendingCount > 0 && (
-                <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                  {pendingCount}
-                </div>
-              )}
+              <item.icon size={20} />
+              <span className="font-medium">{item.label}</span>
             </Link>
           ))}
         </div>

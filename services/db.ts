@@ -313,3 +313,27 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
     return false;
   }
 };
+
+// NEW: Update employee settings (reporting_to and leave balances)
+export const updateEmployeeSettings = async (
+  userId: string,
+  reporting_to: string | undefined,
+  balance: { casual: number; sick: number; annual: number }
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({
+        reporting_to: reporting_to || null,
+        casual_balance: balance.casual,
+        sick_balance: balance.sick,
+        annual_balance: balance.annual
+      })
+      .eq('id', userId);
+
+    return !error;
+  } catch (err) {
+    console.error('Error updating employee settings:', err);
+    return false;
+  }
+};

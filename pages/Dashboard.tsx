@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Calendar, 
   PlusCircle, 
@@ -7,7 +7,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { User, LeaveType, LeaveRecord } from '../types';
 import { LEAVE_TYPES } from '../constants';
@@ -61,15 +62,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, refreshUser }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Calculate pending leaves by type
+  const pendingLeaves = useMemo(() => {
+    const pending = user.history.filter(h => h.status === 'pending');
+    return {
+      casual: pending.filter(h => h.type === 'casual').reduce((sum, h) => sum + h.amount, 0),
+      sick: pending.filter(h => h.type === 'sick').reduce((sum, h) => sum + h.amount, 0),
+      annual: pending.filter(h => h.type === 'annual').reduce((sum, h) => sum + h.amount, 0),
+      total: pending.length
+    };
+  }, [user.history]);
+
+  // Calculate available balance (total - pending)
+  const availableBalance = {
+    casual: user.balance.casual - pendingLeaves.casual,
+    sick: user.balance.sick - pendingLeaves.sick,
+    annual: user.balance.annual - pendingLeaves.annual
+  };
+
   // Stats Logic
   const totalAvailable = user.balance.casual + user.balance.sick + user.balance.annual;
   const leavesLast30Days = user.history.filter(h => {
     const dayDiff = (Date.now() - h.timestamp) / (1000 * 3600 * 24);
     return dayDiff <= 30;
   }).reduce((acc, curr) => acc + curr.amount, 0);
-
-  // Count pending leaves
-  const pendingLeaves = user.history.filter(h => h.status === 'pending').length;
 
   // Form Handlers
   const handleTakeLeave = async () => {
@@ -84,8 +100,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, refreshUser }) => {
       return;
     }
 
-    if (user.balance[formData.type] < formData.amount) {
-      setError(`Insufficient ${formData.type} leave balance. Available: ${user.balance[formData.type]}`);
+    // Check available balance (this will now be caught by the backend too)
+    const available = availableBalance[formData.type];
+    if (available < formData.amount) {
+      setError(`Insufficient ${formData.type} leave balance. Available: ${available} (${user.balance[formData.type]} total - ${pendingLeaves[formData.type]} pending)`);
       setSubmitting(false);
       return;
     }
@@ -218,13 +236,20 @@ ${user.name}`;
         </div>
       )}
 
-      {pendingLeaves > 0 && (
+      {pendingLeaves.total > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-yellow-600" />
-            <p className="text-sm font-medium text-yellow-900">
-              You have {pendingLeaves} leave request{pendingLeaves > 1 ? 's' : ''} pending approval
-            </p>
+          <div className="flex items-start gap-3">
+            <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-900">
+                You have {pendingLeaves.total} leave request{pendingLeaves.total > 1 ? 's' : ''} pending approval
+              </p>
+              <div className="flex gap-3 mt-2 text-xs text-yellow-700">
+                {pendingLeaves.casual > 0 && <span>Casual: {pendingLeaves.casual}</span>}
+                {pendingLeaves.sick > 0 && <span>Sick: {pendingLeaves.sick}</span>}
+                {pendingLeaves.annual > 0 && <span>Annual: {pendingLeaves.annual}</span>}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -241,12 +266,14 @@ ${user.name}`;
         <StatCard 
           title="Casual Leaves" 
           value={user.balance.casual} 
+          subtitle={pendingLeaves.casual > 0 ? `${availableBalance.casual} available` : undefined}
           icon={Clock} 
           colorClass="bg-blue-500 text-blue-500" 
         />
         <StatCard 
           title="Sick Leaves" 
-          value={user.balance.sick} 
+          value={user.balance.sick}
+          subtitle={pendingLeaves.sick > 0 ? `${availableBalance.sick} available` : undefined}
           icon={Activity} 
           colorClass="bg-red-500 text-red-500" 
         />
@@ -341,6 +368,23 @@ ${user.name}`;
                 </div>
               )}
 
+              {/* Available Balance Warning */}
+              {(pendingLeaves.casual > 0 || pendingLeaves.sick > 0 || pendingLeaves.annual > 0) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-800">
+                      <p className="font-semibold mb-1">You have pending leave requests</p>
+                      <div className="space-y-0.5">
+                        <p>Casual: {user.balance.casual} total - {pendingLeaves.casual} pending = <strong>{availableBalance.casual} available</strong></p>
+                        <p>Sick: {user.balance.sick} total - {pendingLeaves.sick} pending = <strong>{availableBalance.sick} available</strong></p>
+                        <p>Annual: {user.balance.annual} total - {pendingLeaves.annual} pending = <strong>{availableBalance.annual} available</strong></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Date</label>
@@ -369,22 +413,33 @@ ${user.name}`;
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Leave Type</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {LEAVE_TYPES.map((type) => (
-                    <button
-                      key={type.id}
-                      onClick={() => setFormData({...formData, type: type.id})}
-                      disabled={submitting}
-                      className={`
-                        py-2 text-xs font-medium rounded-lg border transition-all
-                        ${formData.type === type.id 
-                          ? 'bg-primary-50 border-primary-500 text-primary-700 ring-1 ring-primary-500' 
-                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                      `}
-                    >
-                      {type.label}
-                    </button>
-                  ))}
+                  {LEAVE_TYPES.map((type) => {
+                    const available = availableBalance[type.id];
+                    const hasPending = pendingLeaves[type.id] > 0;
+                    return (
+                      <button
+                        key={type.id}
+                        onClick={() => setFormData({...formData, type: type.id})}
+                        disabled={submitting}
+                        className={`
+                          py-2 text-xs font-medium rounded-lg border transition-all relative
+                          ${formData.type === type.id 
+                            ? 'bg-primary-50 border-primary-500 text-primary-700 ring-1 ring-primary-500' 
+                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
+                      >
+                        <div>{type.label}</div>
+                        <div className="text-[10px] mt-0.5">
+                          {hasPending ? (
+                            <span className="text-amber-600">{available} avail</span>
+                          ) : (
+                            <span className="text-slate-400">{user.balance[type.id]} total</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

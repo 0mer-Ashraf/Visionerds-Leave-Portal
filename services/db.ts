@@ -110,7 +110,7 @@ export const addUser = async (newUser: User): Promise<boolean> => {
   return !error;
 };
 
-// UPDATED: Submit leave request (status = pending, don't deduct balance yet)
+// FIXED: Submit leave request with pending leaves validation
 export const submitLeaveRequest = async (userId: string, leave: LeaveRecord): Promise<boolean> => {
   // Get current user to check balance
   const { data: user, error: userError } = await supabase
@@ -121,10 +121,28 @@ export const submitLeaveRequest = async (userId: string, leave: LeaveRecord): Pr
 
   if (userError || !user) return false;
 
-  // Check if user has enough balance
+  // Get all pending leaves of the same type
+  const { data: pendingLeaves, error: pendingError } = await supabase
+    .from('leave_history')
+    .select('amount')
+    .eq('user_id', userId)
+    .eq('type', leave.type)
+    .eq('status', 'pending');
+
+  if (pendingError) return false;
+
+  // Calculate total pending amount for this leave type
+  const totalPending = pendingLeaves?.reduce((sum, l) => sum + parseFloat(l.amount), 0) || 0;
+
+  // Check if user has enough balance (current balance - pending leaves)
   const balanceField = `${leave.type}_balance` as 'casual_balance' | 'sick_balance' | 'annual_balance';
-  if (user[balanceField] < leave.amount) {
-    throw new Error(`Insufficient ${leave.type} leave balance.`);
+  const currentBalance = user[balanceField];
+  const availableBalance = currentBalance - totalPending;
+
+  if (availableBalance < leave.amount) {
+    throw new Error(
+      `Insufficient ${leave.type} leave balance. Available: ${availableBalance} (${currentBalance} total - ${totalPending} pending)`
+    );
   }
 
   // Insert leave request with 'pending' status (DON'T deduct balance yet)
